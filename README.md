@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Finanzas Personales API (Capital Flow)
 
 Backend en **NestJS 10 + TypeORM + PostgreSQL** que da soporte a las 5 pantallas del diseño
@@ -104,3 +105,7 @@ Mapa pantalla → endpoint: **Dashboard** → `reports/dashboard` · **Transacci
 2. **Moneda:** el diseño muestra USD e IBAN español; aquí el default es `MXN` y solo se guardan los últimos 4 dígitos.
 3. No incluido aún: refresh tokens, importación CSV/OFX de extractos, forecast Q4, tests automatizados.
 4. Estructura lista para crecer: un módulo por dominio en `src/modules/*` (entity, dto, service, controller, module).
+=======
+# Capital-Flow-Backend
+Sistema modular para la gestion de finanzas personales y control de gastos de usuarios, monitoreo de estados de cuenta y servicios financieros
+>>>>>>> 7c2b7acbe97fda2cc8ce9c20823bc438131bc848
