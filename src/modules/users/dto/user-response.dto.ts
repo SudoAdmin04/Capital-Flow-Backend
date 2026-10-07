@@ -29,12 +29,6 @@ export class UserResponseDto {
   @ApiProperty({ example: false, description: 'Acceso total (todas las pantallas con CRUD).' })
   isAdmin: boolean;
 
-  @ApiProperty({
-    type: [PermisoPantallaDto],
-    description: 'Pantallas que el usuario puede ver según su rol, con sus permisos.',
-  })
-  permisos: PermisoPantallaDto[];
-
   @ApiProperty({ example: '2025-10-01T12:00:00.000Z' })
   createdAt: Date;
 

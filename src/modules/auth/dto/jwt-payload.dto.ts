@@ -11,6 +11,12 @@ export class PermisoPantallaDto {
   @ApiProperty({ example: '/dashboard', nullable: true })
   path: string | null;
 
+  @ApiProperty({ example: 1, description: 'ID de la pantalla padre.', nullable: true })
+  parentId: number | null;
+
+  @ApiProperty({ example: '/configuracion', nullable: true })
+  module: string | null;
+
   @ApiProperty({ example: 'layout-dashboard', nullable: true })
   icon: string | null;
 

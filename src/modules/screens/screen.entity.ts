@@ -1,14 +1,4 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, RelationId, UpdateDateColumn } from 'typeorm'; 
 
 @Entity('screens')
 export class Screen {
@@ -38,12 +28,12 @@ export class Screen {
   @Column({ type: 'varchar', length: 80, nullable: true })
   module: string | null;
 
-  @Column({ type: 'int', nullable: true })
-  parentId: number | null;
-
   @ManyToOne(() => Screen, (s) => s.children, { nullable: true, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'parentId' })
   parent: Screen | null;
+
+  @RelationId((s: Screen) => s.parent)
+  parentId: number | null;
 
   @OneToMany(() => Screen, (s) => s.parent)
   children: Screen[];

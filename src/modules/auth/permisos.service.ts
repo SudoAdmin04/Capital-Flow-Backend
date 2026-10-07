@@ -47,7 +47,9 @@ export class PermisosService {
         permisos: screens.map((s) => ({
           screenId: s.id,
           screen: s.name,
+          parentId: s.parentId ?? null,
           path: s.path,
+          module: s.module,
           icon: s.icon,
           canRead: true,
           canCreate: true,
@@ -66,6 +68,8 @@ export class PermisosService {
       .map((a) => ({
         screenId: a.screen.id,
         screen: a.screen.name,
+        parentId: a.screen.parentId ?? null,
+        module: a.module,
         path: a.screen.path,
         icon: a.screen.icon,
         canRead: a.canRead,

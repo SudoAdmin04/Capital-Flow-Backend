@@ -16,7 +16,7 @@ import { PermisosService } from './permisos.service';
 
 function toUserResponse(user: User, acceso: { roleId: number | null; role: string | null; isAdmin: boolean; permisos: any[] }) {
   const { passwordHash, ...rest } = user as any;
-  return { ...rest, roleId: acceso.roleId, role: acceso.role, isAdmin: acceso.isAdmin, permisos: acceso.permisos };
+  return { ...rest, roleId: acceso.roleId, role: acceso.role, isAdmin: acceso.isAdmin};
 }
 
 @Injectable()

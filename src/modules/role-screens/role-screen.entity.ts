@@ -31,6 +31,9 @@ export class RoleScreen {
   @JoinColumn({ name: 'screenId' })
   screen: Screen;
 
+  @Column({ type: 'varchar', length: 80, nullable: true })
+  module: string | null;
+
   @Column({ type: 'boolean', default: false })
   canRead: boolean;
 
