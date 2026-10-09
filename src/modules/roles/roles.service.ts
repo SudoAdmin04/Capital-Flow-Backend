@@ -74,6 +74,13 @@ export class RolesService {
     }
   }
 
+  async toggleActive(id: number) {
+    const role = await this.findOne(id);
+    role.isActive = !role.isActive;
+    await this.repo.save(role);
+    return this.findOne(id);
+  }
+
   async remove(id: number) {
     const role = await this.findOne(id);
     await this.repo.remove(role);

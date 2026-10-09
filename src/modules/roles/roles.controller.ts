@@ -102,6 +102,19 @@ export class RolesController {
     return this.rolesService.update(id, updateRoleDto);
   }
 
+  @Patch(':id/toggle-active')
+  @ApiOperation({ summary: 'Activar o desactivar un rol' })
+  @ResponseMessage('Estado del rol actualizado exitosamente')
+  @ApiGlobalResponse({
+    status: 200,
+    description: 'Estado del rol actualizado exitosamente',
+    type: RoleResponseDto,
+    message: 'Estado del rol actualizado exitosamente',
+  })
+  toggleActive(@Param('id', ParseIntPipe) id: number) {
+    return this.rolesService.toggleActive(id);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un rol' })
   @ResponseMessage('Rol eliminado exitosamente')

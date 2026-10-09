@@ -41,7 +41,10 @@ export class ScreensController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Obtener todas las pantallas' })
+  @ApiOperation({
+    summary: 'Obtener todas las pantallas',
+    description: 'Devuelve todas las pantallas raíz con sus hijas, sin importar si están activas o no.',
+  })
   @ResponseMessage('Lista de pantallas obtenida exitosamente')
   @ApiGlobalResponse({
     status: 200,

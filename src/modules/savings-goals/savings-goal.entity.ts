@@ -1,10 +1,11 @@
-import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { OwnedEntity } from '../../common/owned.entity';
 import { decimalTransformer } from '../../common/decimal.transformer';
 import { Account } from '../accounts/account.entity';
 import { Category } from '../categories/category.entity';
+import { SavingsGoalEntry } from './savings-goal-entry.entity';
 
-/** Meta de ahorro (p. ej. $500 semanales). El avance se mide con las transacciones de `category`. */
+/** Meta de ahorro (p. ej. $500 semanales). El avance se mide con el ledger `savings_goal_entries` (fallback: egresos de `category`). */
 @Entity('savings_goals')
 export class SavingsGoal extends OwnedEntity {
   @Column({ type: 'varchar', length: 120 })
@@ -33,4 +34,7 @@ export class SavingsGoal extends OwnedEntity {
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
+
+  @OneToMany(() => SavingsGoalEntry, (e) => e.goal)
+  entries: SavingsGoalEntry[];
 }

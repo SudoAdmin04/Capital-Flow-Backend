@@ -1,6 +1,19 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
+import { SavingsGoalEntryKind } from '../../../common/enums';
 
 export class CreateSavingsGoalDto {
   @ApiProperty({
@@ -104,7 +117,7 @@ export class GoalProgressResponseDto {
   @ApiProperty({ description: 'Periodo evaluado.', example: { year: 2025, month: 10 } })
   period: { year: number; month: number };
 
-  @ApiProperty({ description: 'Egresos del mes en su categoría.', example: 1500 })
+  @ApiProperty({ description: 'Aporte neto del mes (depósitos − retiros del ledger; fallback: egresos de su categoría).', example: 1500 })
   contributed: number;
 
   @ApiProperty({ description: 'Meta mensual.', example: 2000 })
@@ -116,9 +129,131 @@ export class GoalProgressResponseDto {
   @ApiProperty({ description: 'Faltante del mes (`max(target − contributed, 0)`).', example: 500 })
   remaining: number;
 
-  @ApiProperty({ description: 'Aportes históricos acumulados.', example: 8500 })
+  @ApiProperty({ description: 'Aportes históricos netos acumulados.', example: 8500 })
   totalContributed: number;
 
   @ApiProperty({ description: '% vs `targetAmount` (null si no hay objetivo total).', example: 28.33, nullable: true })
   targetProgressPercent: number | null;
+
+  @ApiPropertyOptional({ description: 'Depósitos brutos del mes (solo modo ledger).', example: 1500 })
+  depositsMonth?: number;
+
+  @ApiPropertyOptional({ description: 'Retiros brutos del mes (solo modo ledger).', example: 0 })
+  withdrawalsMonth?: number;
+
+  @ApiPropertyOptional({ description: 'Origen del cálculo: `ledger` o `category` (fallback sin movimientos).', example: 'ledger' })
+  source?: 'ledger' | 'category';
+}
+
+/** Aporte a una meta: mueve dinero real operativa → reserva y registra el ledger. */
+export class DepositSavingsGoalDto {
+  @ApiProperty({ description: 'Monto a aportar (> 0, 2 decimales).', example: 1500, minimum: 0.01 })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  amount: number;
+
+  @ApiProperty({ description: 'Fecha contable del aporte (YYYY-MM-DD).', example: '2025-10-05', format: 'date' })
+  @IsDateString()
+  date: string;
+
+  @ApiProperty({
+    description: 'Cuenta origen (operativa). Si la meta tiene cuenta reserva distinta, se crea un `transfer` real hacia ella.',
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    format: 'uuid',
+  })
+  @IsUUID()
+  fromAccountId: string;
+
+  @ApiPropertyOptional({ description: 'Concepto del aporte.', example: 'Aporte quincenal', maxLength: 160 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  concept?: string;
+}
+
+/** Retiro de una meta: mueve dinero real reserva → operativa y resta del avance. */
+export class WithdrawSavingsGoalDto {
+  @ApiProperty({ description: 'Monto a retirar (> 0, debe ser ≤ saldo del ledger).', example: 500, minimum: 0.01 })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  amount: number;
+
+  @ApiProperty({ description: 'Fecha contable del retiro (YYYY-MM-DD).', example: '2025-10-10', format: 'date' })
+  @IsDateString()
+  date: string;
+
+  @ApiPropertyOptional({
+    description: 'Cuenta destino (operativa). Por defecto se usa la misma cuenta origen del último aporte o la primera propia.',
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  toAccountId?: string;
+
+  @ApiPropertyOptional({ description: 'Concepto del retiro.', example: 'Emergencia médica', maxLength: 160 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  concept?: string;
+}
+
+export class QueryGoalEntriesDto {
+  @ApiPropertyOptional({ description: 'Fecha inicial inclusiva (YYYY-MM-DD).', example: '2025-10-01' })
+  @IsOptional()
+  @IsDateString()
+  from?: string;
+
+  @ApiPropertyOptional({ description: 'Fecha final inclusiva (YYYY-MM-DD).', example: '2025-10-31' })
+  @IsOptional()
+  @IsDateString()
+  to?: string;
+}
+
+/** Movimiento del ledger tal como lo devuelve la API. */
+export class SavingsGoalEntryResponseDto {
+  @ApiProperty({ description: 'UUID del movimiento.', format: 'uuid' })
+  id: string;
+
+  @ApiProperty({ description: 'UUID de la meta.', format: 'uuid' })
+  goalId: string;
+
+  @ApiProperty({ description: 'Tipo: aporte o retiro.', enum: SavingsGoalEntryKind, example: SavingsGoalEntryKind.DEPOSIT })
+  kind: SavingsGoalEntryKind;
+
+  @ApiProperty({ description: 'Monto siempre positivo.', example: 1500 })
+  amount: number;
+
+  @ApiProperty({ description: 'Fecha contable YYYY-MM-DD.', example: '2025-10-05' })
+  date: string;
+
+  @ApiProperty({ description: 'Cuenta operada (null en modo virtual).', nullable: true })
+  accountId: string | null;
+
+  @ApiProperty({ description: 'Transfer que movió el dinero (null en modo virtual).', nullable: true })
+  transactionId: string | null;
+
+  @ApiProperty({ description: 'Concepto.', nullable: true })
+  concept: string | null;
+
+  @ApiProperty({ description: 'Creación.' })
+  createdAt: Date;
+}
+
+/** Saldo de una meta (`GET /savings-goals/:id/balance`). */
+export class SavingsGoalBalanceResponseDto {
+  @ApiProperty({ description: 'Meta evaluada.', type: SavingsGoalResponseDto })
+  goal: SavingsGoalResponseDto;
+
+  @ApiProperty({ description: 'Saldo neto del ledger (depósitos − retiros).', example: 1000 })
+  balance: number;
+
+  @ApiProperty({ description: 'Total histórico de depósitos.', example: 1500 })
+  totalDeposited: number;
+
+  @ApiProperty({ description: 'Total histórico de retiros.', example: 500 })
+  totalWithdrawn: number;
+
+  @ApiProperty({ description: 'Número de movimientos en el ledger.', example: 2 })
+  entriesCount: number;
 }

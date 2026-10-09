@@ -51,3 +51,8 @@ export enum NotificationType {
   SUCCESS = 'success',
   ERROR = 'error',
 }
+
+export enum SavingsGoalEntryKind {
+  DEPOSIT = 'deposit',
+  WITHDRAWAL = 'withdrawal',
+}

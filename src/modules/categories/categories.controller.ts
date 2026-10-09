@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestj
 import { ApiGlobalResponse } from '../../common/decorators/api-response.decorator';
 import { ResponseMessage } from '../../common/decorators/response-message.decorator';
 import { AuthUser, UsuarioActual } from '../../common/decorators/usuario-actual.decorator';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { CategoriesService } from './categories.service';
 import { CategoryResponseDto, CategoryTreeResponseDto, CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
 
@@ -29,6 +30,25 @@ export class CategoriesController {
   })
   findAll(@UsuarioActual() user: AuthUser, @Query('tree') tree?: string) {
     return tree === 'true' ? this.service.findTree(user.userId) : this.service.findAll(user.userId);
+  }
+
+  @Get('paginado')
+  @ApiOperation({
+    summary: 'Obtener categorías paginadas',
+    description:
+      'Devuelve una página de categorías junto con el total de registros que coinciden con la búsqueda (nombre).',
+  })
+  @ResponseMessage('Categorías obtenidas exitosamente')
+  @ApiGlobalResponse({
+    status: 200,
+    description: 'Lista de categorías paginadas obtenida exitosamente.',
+    type: CategoryResponseDto,
+    isArray: true,
+    message: 'Categorías obtenidas exitosamente',
+    paginated: true,
+  })
+  findAllPaginated(@UsuarioActual() user: AuthUser, @Query() query: PaginationQueryDto) {
+    return this.service.findAllPaginated(user.userId, query);
   }
 
   @Get(':id')
@@ -75,6 +95,19 @@ export class CategoriesController {
   })
   update(@UsuarioActual() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateCategoryDto) {
     return this.service.update(user.userId, id, dto);
+  }
+
+  @Patch(':id/toggle-active')
+  @ApiOperation({ summary: 'Activar o desactivar una categoría' })
+  @ApiParam({ name: 'id', description: 'UUID de la categoría.', format: 'uuid' })
+  @ResponseMessage('Estado de la categoría actualizado exitosamente')
+  @ApiGlobalResponse({
+    description: 'Categoría con estado actualizado.',
+    type: CategoryResponseDto,
+    message: 'Estado de la categoría actualizado exitosamente',
+  })
+  toggleActive(@UsuarioActual() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.service.toggleActive(user.userId, id);
   }
 
   @Delete(':id')

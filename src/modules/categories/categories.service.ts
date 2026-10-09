@@ -1,7 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { rethrowUnique } from '../../common/db-errors';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { Transaction } from '../transactions/transaction.entity';
 import { Category } from './category.entity';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto/category.dto';
@@ -50,6 +51,23 @@ export class CategoriesService {
     return this.repo.find({ where: { userId }, order: { sortOrder: 'ASC', name: 'ASC' } });
   }
 
+  async findAllPaginated(userId: string, query: PaginationQueryDto) {
+    const pagina = Math.max(1, Number(query.pagina) || 1);
+    const registros = Math.min(100, Math.max(1, Number(query.registros) || 10));
+    const buscar = query.buscar?.trim();
+
+    const where: any = { userId };
+    if (buscar) where.name = ILike(`%${buscar}%`);
+
+    const [data, total] = await this.repo.findAndCount({
+      where,
+      order: { sortOrder: 'ASC', name: 'ASC' },
+      skip: (pagina - 1) * registros,
+      take: registros,
+    });
+    return { data, total };
+  }
+
   /** Rubros con sus partidas anidadas. */
   async findTree(userId: string) {
     const all = await this.findAll(userId);
@@ -86,6 +104,12 @@ export class CategoriesService {
     } catch (e) {
       rethrowUnique(e, 'Ya existe una categoría con ese nombre en ese nivel');
     }
+  }
+
+  async toggleActive(userId: string, id: string) {
+    const category = await this.findOne(userId, id);
+    category.isActive = !category.isActive;
+    return this.repo.save(category);
   }
 
   async remove(userId: string, id: string) {

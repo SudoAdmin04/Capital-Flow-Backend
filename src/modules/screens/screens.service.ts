@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Repository } from 'typeorm';
+import { ILike, IsNull, Repository } from 'typeorm';
 import { rethrowUnique } from '../../common/db-errors';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { Screen } from './screen.entity';
@@ -29,9 +29,10 @@ export class ScreensService {
     }
   }
 
+  /** Todas las pantallas raíz con sus hijas, sin filtrar por isActive. */
   async findAll() {
     const roots = await this.repo.find({
-      where: { parentId: null as any },
+      where: { parent: IsNull() },
       relations: { children: true, parent: true },
       order: { order: 'ASC', name: 'ASC' },
     });
@@ -97,7 +98,7 @@ export class ScreensService {
 
   async remove(id: number) {
     const screen = await this.findOne(id);
-    const children = await this.repo.count({ where: { parentId: id } as any });
+    const children = await this.repo.count({ where: { parent: { id } } });
     if (children) {
       throw new BadRequestException('La pantalla tiene hijas; elimínalas o desactívala.');
     }
