@@ -299,3 +299,245 @@ export class ReconcileResponseDto {
   @ApiProperty({ description: 'Movimientos que pasaron de `pending` a `reconciled`.', example: 3 })
   updated: number;
 }
+
+/** Filtros para `GET /transactions/summary`. Mismo alcance que el listado, sin paginación ni `type/status` (el resumen los desglosa). */
+export class QueryTransactionSummaryDto {
+  @ApiPropertyOptional({ description: 'Fecha inicial inclusiva (YYYY-MM-DD).', example: '2025-10-01', format: 'date' })
+  @IsOptional()
+  @IsDateString()
+  from?: string;
+
+  @ApiPropertyOptional({ description: 'Fecha final inclusiva (YYYY-MM-DD).', example: '2025-10-31', format: 'date' })
+  @IsOptional()
+  @IsDateString()
+  to?: string;
+
+  @ApiPropertyOptional({ description: 'Filtrar por medio de pago.', enum: PaymentMethod, example: PaymentMethod.CASH })
+  @IsOptional()
+  @IsEnum(PaymentMethod)
+  paymentMethod?: PaymentMethod;
+
+  @ApiPropertyOptional({
+    description: 'Rubro o partida. Si es un rubro, incluye sus partidas.',
+    example: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Cuenta origen o destino.',
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID()
+  accountId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Búsqueda por texto en concepto, descripción o referencia.',
+    example: 'súper',
+    maxLength: 100,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  search?: string;
+}
+
+export class SummaryAmountDto {
+  @ApiProperty({ description: 'Monto total del grupo.', example: 20100 })
+  total: number;
+
+  @ApiProperty({ description: 'Número de movimientos del grupo.', example: 3 })
+  count: number;
+}
+
+export class SummaryBudgetLineDto extends SummaryAmountDto {
+  @ApiProperty({ description: 'Presupuesto del periodo (0 si no hay o el rango no es un mes único).', example: 20200 })
+  budget: number;
+
+  @ApiProperty({ description: 'Diferencia `total - budget` (negativa = por debajo, positiva = por encima).', example: -100 })
+  variance: number;
+
+  @ApiProperty({
+    description: '`total / budget * 100` (null si no hay presupuesto).',
+    example: 99.5,
+    nullable: true,
+  })
+  executionRate: number | null;
+}
+
+export class SummaryStatusDto extends SummaryAmountDto {}
+
+export class SummaryNetDto {
+  @ApiProperty({ description: 'Saldo neto `ingresos - egresos` (transferencias excluidas).', example: -6519 })
+  total: number;
+
+  @ApiProperty({ description: '`true` si egresos > ingresos.', example: true })
+  isDeficit: boolean;
+
+  @ApiProperty({ description: 'Etiqueta para la carta: `superavit`, `deficit` o `equilibrado`.', example: 'deficit' })
+  status: 'superavit' | 'deficit' | 'equilibrado';
+}
+
+export class SummaryDebtsDto {
+  @ApiProperty({ description: 'Deudas/préstamos abiertos (sin filtrar por periodo).', example: 1 })
+  openCount: number;
+
+  @ApiProperty({ description: 'Monto por pagar (pasivos propios).', example: 0 })
+  payable: number;
+
+  @ApiProperty({ description: 'Monto por cobrar (dinero prestado, ej. $3,000 de la imagen).', example: 3000 })
+  receivable: number;
+}
+
+export class SummaryPeriodDto {
+  @ApiProperty({ description: 'Fecha inicial aplicada (null = sin filtro).', example: '2025-10-01', nullable: true })
+  from: string | null;
+
+  @ApiProperty({ description: 'Fecha final aplicada (null = sin filtro).', example: '2025-10-31', nullable: true })
+  to: string | null;
+
+  @ApiProperty({ description: 'Etiqueta lista para la carta (ej. "Octubre 2025" o "Todos los movimientos").', example: 'Octubre 2025' })
+  label: string;
+}
+
+/** Resumen para las cartas de stats (`GET /transactions/summary`). Replica las 4 cartas de la imagen. */
+export class TransactionSummaryResponseDto {
+  @ApiProperty({ description: 'Periodo filtrado.', type: SummaryPeriodDto })
+  period: SummaryPeriodDto;
+
+  @ApiProperty({ description: 'Carta "Ingresos totales" (ej. $20,100, 3 transacciones, Ppto $20,200, Dif -$100).', type: SummaryBudgetLineDto })
+  income: SummaryBudgetLineDto;
+
+  @ApiProperty({ description: 'Carta "Egresos totales" (ej. $26,619, 8 transacciones, Ppto $22,331, Dif +$4,288).', type: SummaryBudgetLineDto })
+  expense: SummaryBudgetLineDto;
+
+  @ApiProperty({ description: 'Carta "Saldo neto mensual" (`ingresos - egresos`).', type: SummaryNetDto })
+  net: SummaryNetDto;
+
+  @ApiProperty({ description: 'Carta "Por conciliar": movimientos aún `pending` dentro del filtro.', type: SummaryStatusDto })
+  pending: SummaryStatusDto;
+
+  @ApiProperty({ description: 'Movimientos ya conciliados dentro del filtro.', type: SummaryStatusDto })
+  reconciled: SummaryStatusDto;
+
+  @ApiProperty({ description: 'Transferencias entre cuentas propias (no suman a ingresos/egresos/neto).', type: SummaryStatusDto })
+  transfers: SummaryStatusDto;
+
+  @ApiProperty({ description: 'Carta "Deuda": pasivos/préstamos abiertos (ej. Dinero Prestado $3,000).', type: SummaryDebtsDto })
+  debts: SummaryDebtsDto;
+
+  @ApiProperty({ description: 'Total de movimientos dentro del filtro (todos los tipos).', example: 12 })
+  totalCount: number;
+}
+
+/** Fila de "Distribución de Gastos" (ej. Gastos generales $15,144 57%). */
+export class ExpenseDistributionItemDto {
+  @ApiProperty({ description: 'UUID del rubro (agrupa sus partidas).', example: 'c3d4e5f6-a7b8-9012-cdef-123456789012' })
+  categoryId: string;
+
+  @ApiProperty({ description: 'Nombre del rubro (ej. "Gastos generales").', example: 'Gastos generales' })
+  name: string;
+
+  @ApiProperty({ description: 'Color del rubro (null si no definido).', example: '#f4a7b9', nullable: true })
+  color: string | null;
+
+  @ApiProperty({ description: 'Icono Material Symbols (null si no definido).', example: 'shopping_cart', nullable: true })
+  icon: string | null;
+
+  @ApiProperty({ description: 'Monto sumado del rubro (ej. $15,144).', example: 15144 })
+  amount: number;
+
+  @ApiProperty({ description: 'Participación `amount / total * 100` (ej. 57%).', example: 57 })
+  percent: number;
+
+  @ApiProperty({ description: 'Movimientos del rubro.', example: 4 })
+  count: number;
+
+  @ApiProperty({ description: 'Presupuesto del rubro en el mes (0 si no hay o el rango no es mes único).', example: 12000 })
+  budget: number;
+
+  @ApiProperty({ description: 'Diferencia `amount - budget`.', example: 3144 })
+  variance: number;
+}
+
+/** `GET /transactions/expenses-distribution` — Componente "Distribución de Gastos". */
+export class ExpenseDistributionResponseDto {
+  @ApiProperty({ description: 'Total de egresos del filtro (ej. $26,619). Suma de `amount`.', example: 26619 })
+  total: number;
+
+  @ApiProperty({ description: 'Presupuesto original fijado (ej. $22,331). Solo si el rango es un mes único.', example: 22331 })
+  budgetTotal: number;
+
+  @ApiProperty({ description: 'Exceso `total - budgetTotal` (ej. +$4,288).', example: 4288 })
+  variance: number;
+
+  @ApiProperty({ description: '`true` si `total > budgetTotal`.', example: true })
+  isOverBudget: boolean;
+
+  @ApiProperty({ description: 'Etiqueta "Total: $26,619".', example: 'Total: $26,619' })
+  totalLabel: string;
+
+  @ApiProperty({ description: 'Etiqueta "Presupuesto original fijado: $22,331".', example: 'Presupuesto original fijado: $22,331' })
+  budgetLabel: string;
+
+  @ApiProperty({ description: 'Filas + segmentos de la barra (ordenadas por monto desc).', type: [ExpenseDistributionItemDto] })
+  items: ExpenseDistributionItemDto[];
+}
+
+/** Fila de "Fuentes de Ingreso" (ej. Otros Honorarios +$9,300 / $9,200). */
+export class IncomeSourceItemDto {
+  @ApiProperty({ description: 'UUID del rubro de ingreso.', example: 'c3d4e5f6-a7b8-9012-cdef-123456789012' })
+  categoryId: string;
+
+  @ApiProperty({ description: 'Nombre (ej. "Sueldo Base").', example: 'Sueldo Base' })
+  name: string;
+
+  @ApiProperty({ description: 'Color del rubro (null si no definido).', example: '#34d399', nullable: true })
+  color: string | null;
+
+  @ApiProperty({ description: 'Icono Material Symbols (null si no definido).', example: 'payments', nullable: true })
+  icon: string | null;
+
+  @ApiProperty({ description: 'Entradas efectivas (ej. $9,300).', example: 9300 })
+  actual: number;
+
+  @ApiProperty({ description: 'Meta presupuestada del mes (0 si no hay).', example: 9200 })
+  budget: number;
+
+  @ApiProperty({ description: 'Diferencia `actual - budget`.', example: 100 })
+  variance: number;
+
+  @ApiProperty({ description: '`actual / budget * 100` (null sin presupuesto, ej. barra +$9,300 / $9,200).', example: 101.1, nullable: true })
+  executionRate: number | null;
+
+  @ApiProperty({ description: 'Movimientos de la fuente.', example: 1 })
+  count: number;
+
+  @ApiProperty({ description: 'Etiqueta "+$9,300 / $9,200" lista para UI.', example: '+$9,300 / $9,200' })
+  label: string;
+}
+
+/** `GET /transactions/income-sources` — Componente "Fuentes de Ingreso". */
+export class IncomeSourcesResponseDto {
+  @ApiProperty({ description: 'Total de ingresos del filtro (ej. $20,100).', example: 20100 })
+  total: number;
+
+  @ApiProperty({ description: 'Metas presupuestadas sumadas (ej. $20,200).', example: 20200 })
+  budgetTotal: number;
+
+  @ApiProperty({ description: 'Cumplimiento total `total / budgetTotal * 100` (ej. 99.5%).', example: 99.5, nullable: true })
+  complianceRate: number | null;
+
+  @ApiProperty({ description: 'Etiqueta "Total: $20,100".', example: 'Total: $20,100' })
+  totalLabel: string;
+
+  @ApiProperty({ description: 'Etiqueta "Cumplimiento total ingresos 99.5%".', example: 'Cumplimiento total ingresos 99.5%' })
+  complianceLabel: string;
+
+  @ApiProperty({ description: 'Fuentes con barra actual vs meta (ordenadas por monto desc).', type: [IncomeSourceItemDto] })
+  items: IncomeSourceItemDto[];
+}

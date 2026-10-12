@@ -4,7 +4,14 @@ import { ApiGlobalResponse } from '../../common/decorators/api-response.decorato
 import { ResponseMessage } from '../../common/decorators/response-message.decorator';
 import { AuthUser, UsuarioActual } from '../../common/decorators/usuario-actual.decorator';
 import { AccountsService } from './accounts.service';
-import { AccountResponseDto, CreateAccountDto, UpdateAccountDto } from './dto/account.dto';
+import {
+  AccountResponseDto,
+  AccountSummaryResponseDto,
+  AssetsDistributionResponseDto,
+  CreateAccountDto,
+  ReconciliationResponseDto,
+  UpdateAccountDto,
+} from './dto/account.dto';
 
 @ApiTags('accounts')
 @ApiBearerAuth()
@@ -28,6 +35,57 @@ export class AccountsController {
   })
   findAll(@UsuarioActual() user: AuthUser) {
     return this.service.findAll(user.userId);
+  }
+
+  /** Cartas "Resumen general" (saldo total, conteo y principal). Va antes de `:id`. */
+  @Get('summary')
+  @ApiOperation({
+    summary: 'Resumen general para cartas de stats',
+    description:
+      'Suma `balance` de cuentas activas (ej. $21,330 + "4 cuentas activas"), conteo `active/total` (ej. "4 / 4", "0 inactivas") y la cuenta principal con su saldo (ej. "Cuenta Principal" $10,950). Sin parámetros.',
+  })
+  @ResponseMessage('Resumen de cuentas obtenido exitosamente')
+  @ApiGlobalResponse({
+    description: 'Resumen para las 3 cartas de la imagen.',
+    type: AccountSummaryResponseDto,
+    message: 'Resumen de cuentas obtenido exitosamente',
+  })
+  getSummary(@UsuarioActual() user: AuthUser) {
+    return this.service.getSummary(user.userId);
+  }
+
+  /** Componente "Distribución de Activos" (barra + filas por tipo). Va antes de `:id`. */
+  @Get('assets-distribution')
+  @ApiOperation({
+    summary: 'Distribución de activos por tipo',
+    description:
+      'Agrupa saldos de cuentas activas: `checking` → "Cuentas Corrientes" (ej. $12,450 60%), `savings` → "Reserva / Ahorro" ($5,200 25%), `cash` → "Caja y Efectivo" ($3,180 15%). `totalActivos` = suma líquida (ej. $20,830). Ideal para la barra 0%–100% + filas con porcentaje.',
+  })
+  @ResponseMessage('Distribución de activos obtenida exitosamente')
+  @ApiGlobalResponse({
+    description: 'Distribución para el componente de activos.',
+    type: AssetsDistributionResponseDto,
+    message: 'Distribución de activos obtenida exitosamente',
+  })
+  getDistribution(@UsuarioActual() user: AuthUser) {
+    return this.service.getAssetsDistribution(user.userId);
+  }
+
+  /** Componente "Conciliación Rápida" (progreso + cuadradas + pendientes). Va antes de `:id`. */
+  @Get('reconciliation')
+  @ApiOperation({
+    summary: 'Estado de conciliación rápida',
+    description:
+      'Devuelve `completionRate/completionLabel` (ej. "91% Completado"), `squaredAccounts/totalAccounts/statusLabel` (ej. "10 de 11 Cuadradas"), `byAccount` (cuentas cuadradas vs pendientes) y `recentPending` (máx. 5 con `debtReference`, ej. "1 movimiento por conciliar en Préstamo #D892"). El botón "Importar Extracto (CSV/OFX)" es solo frontend.',
+  })
+  @ResponseMessage('Conciliación obtenida exitosamente')
+  @ApiGlobalResponse({
+    description: 'Estado para el componente de conciliación rápida.',
+    type: ReconciliationResponseDto,
+    message: 'Conciliación obtenida exitosamente',
+  })
+  getReconciliation(@UsuarioActual() user: AuthUser) {
+    return this.service.getReconciliation(user.userId);
   }
 
   @Get(':id')

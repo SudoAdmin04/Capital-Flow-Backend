@@ -134,3 +134,150 @@ export class AccountResponseDto {
   @ApiProperty({ description: 'Última actualización.', example: '2025-10-05T12:00:00.000Z' })
   updatedAt: Date;
 }
+
+/** Cuenta principal resumida para la carta "Cuenta principal". */
+export class PrimaryAccountDto {
+  @ApiProperty({ description: 'UUID de la cuenta principal.', example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
+  id: string;
+
+  @ApiProperty({ description: 'Nombre (ej. "Cuenta Principal").', example: 'Cuenta Principal' })
+  name: string;
+
+  @ApiProperty({ description: 'Tipo de cuenta.', enum: AccountType, example: AccountType.CHECKING })
+  type: AccountType;
+
+  @ApiProperty({ description: 'Saldo calculado de la principal.', example: 10950 })
+  balance: number;
+}
+
+/** `GET /accounts/summary` — Cartas "Resumen general". */
+export class AccountSummaryResponseDto {
+  @ApiProperty({ description: 'Carta "Saldo total (activas)" (ej. $21,330). Suma de `balance` de cuentas activas.', example: 21330 })
+  totalBalance: number;
+
+  @ApiProperty({ description: 'Cuentas activas (ej. 4).', example: 4 })
+  activeCount: number;
+
+  @ApiProperty({ description: 'Cuentas inactivas (ej. 0).', example: 0 })
+  inactiveCount: number;
+
+  @ApiProperty({ description: 'Total de cuentas (ej. 4).', example: 4 })
+  totalCount: number;
+
+  @ApiProperty({ description: 'Etiqueta "4 / 4" para la carta de conteo.', example: '4 / 4' })
+  label: string;
+
+  @ApiProperty({ description: 'Carta "Cuenta principal" (null si ninguna marcada).', type: PrimaryAccountDto, nullable: true })
+  primary: PrimaryAccountDto | null;
+}
+
+/** Grupo de la distribución de activos (barra + fila). */
+export class AssetGroupDto {
+  @ApiProperty({ description: 'Clave del grupo (`checking | savings | cash | credit_card`).', example: 'checking' })
+  key: string;
+
+  @ApiProperty({ description: 'Etiqueta lista para UI (ej. "Cuentas Corrientes").', example: 'Cuentas Corrientes' })
+  label: string;
+
+  @ApiProperty({ description: 'Saldo sumado del grupo (solo activas).', example: 12450 })
+  balance: number;
+
+  @ApiProperty({ description: 'Porcentaje sobre el total de activos (`balance / totalActivos * 100`).', example: 60 })
+  percent: number;
+
+  @ApiProperty({ description: 'Número de cuentas activas en el grupo.', example: 2 })
+  count: number;
+}
+
+/** `GET /accounts/assets-distribution` — Componente "Distribución de Activos". */
+export class AssetsDistributionResponseDto {
+  @ApiProperty({ description: 'Total de activos (ej. $20,830). Suma de `checking + savings + cash` activas.', example: 20830 })
+  totalActivos: number;
+
+  @ApiProperty({ description: 'Etiqueta lista para UI (ej. "Total Activos: $20,830.00").', example: 'Total Activos: $20,830.00' })
+  label: string;
+
+  @ApiProperty({ description: 'Grupos para la barra segmentada y las filas (ej. Corrientes 60%, Ahorro 25%, Efectivo 15%).', type: [AssetGroupDto] })
+  items: AssetGroupDto[];
+}
+
+/** Desglose por cuenta para la conciliación rápida. */
+export class ReconciliationAccountDto {
+  @ApiProperty({ description: 'UUID de la cuenta.', example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
+  accountId: string;
+
+  @ApiProperty({ description: 'Nombre de la cuenta.', example: 'Nómina BBVA' })
+  accountName: string;
+
+  @ApiProperty({ description: 'Movimientos totales de la cuenta.', example: 6 })
+  total: number;
+
+  @ApiProperty({ description: 'Movimientos conciliados.', example: 6 })
+  reconciled: number;
+
+  @ApiProperty({ description: 'Movimientos por conciliar.', example: 0 })
+  pending: number;
+
+  @ApiProperty({ description: 'Monto por conciliar en la cuenta.', example: 0 })
+  pendingAmount: number;
+
+  @ApiProperty({ description: '`true` si `pending === 0` (cuenta "cuadrada").', example: true })
+  isSquared: boolean;
+}
+
+/** Movimiento pendiente reciente (para el aviso "1 movimiento por conciliar en Préstamo #D892"). */
+export class PendingItemDto {
+  @ApiProperty({ description: 'UUID del movimiento.', example: 'e5f6a7b8-c9d0-1234-efab-345678901234' })
+  id: string;
+
+  @ApiProperty({ description: 'Concepto del movimiento.', example: 'Abono préstamo' })
+  concept: string;
+
+  @ApiProperty({ description: 'Monto por conciliar.', example: 3000 })
+  amount: number;
+
+  @ApiProperty({ description: 'Fecha contable YYYY-MM-DD.', example: '2025-10-05' })
+  date: string;
+
+  @ApiProperty({ description: 'Cuenta origen.', example: 'Nómina BBVA' })
+  accountName: string;
+
+  @ApiProperty({ description: 'Referencia de la deuda vinculada (ej. "#D892", null si no aplica).', example: '#D892', nullable: true })
+  debtReference: string | null;
+}
+
+/** `GET /accounts/reconciliation` — Componente "Conciliación Rápida". */
+export class ReconciliationResponseDto {
+  @ApiProperty({ description: 'Movimientos totales del usuario.', example: 11 })
+  total: number;
+
+  @ApiProperty({ description: 'Movimientos conciliados.', example: 10 })
+  reconciledCount: number;
+
+  @ApiProperty({ description: 'Movimientos por conciliar.', example: 1 })
+  pendingCount: number;
+
+  @ApiProperty({ description: 'Monto total por conciliar.', example: 3000 })
+  pendingAmount: number;
+
+  @ApiProperty({ description: 'Avance `reconciled / total * 100` (ej. 91% Completado).', example: 91 })
+  completionRate: number;
+
+  @ApiProperty({ description: 'Etiqueta "91% Completado".', example: '91% Completado' })
+  completionLabel: string;
+
+  @ApiProperty({ description: 'Cuentas cuadradas (`pending === 0`).', example: 10 })
+  squaredAccounts: number;
+
+  @ApiProperty({ description: 'Cuentas activas evaluadas.', example: 11 })
+  totalAccounts: number;
+
+  @ApiProperty({ description: 'Etiqueta "10 de 11 Cuadradas".', example: '10 de 11 Cuadradas' })
+  statusLabel: string;
+
+  @ApiProperty({ description: 'Desglose por cuenta.', type: [ReconciliationAccountDto] })
+  byAccount: ReconciliationAccountDto[];
+
+  @ApiProperty({ description: 'Pendientes recientes (máx. 5, ej. "1 movimiento por conciliar en Préstamo #D892").', type: [PendingItemDto] })
+  recentPending: PendingItemDto[];
+}

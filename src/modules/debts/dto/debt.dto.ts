@@ -123,3 +123,53 @@ export class DebtResponseDto {
   @ApiProperty({ description: 'Última actualización.', example: '2025-10-05T12:00:00.000Z' })
   updatedAt: Date;
 }
+
+/** Stats para las 4 cards de la página de deudas. Solo considera `status=open`. */
+export class DebtPayableStatsDto {
+  @ApiProperty({ description: 'Saldo vivo por pagar (yo debo) = Σ outstanding payable.', example: 0 })
+  amount: number;
+
+  @ApiProperty({ description: 'Cantidad de deudas por pagar vigentes.', example: 0 })
+  count: number;
+}
+
+export class DebtReceivableStatsDto {
+  @ApiProperty({ description: 'Saldo vivo por cobrar (me deben) = Σ outstanding receivable.', example: 3000 })
+  amount: number;
+
+  @ApiProperty({ description: 'Cantidad de deudas por cobrar vigentes.', example: 1 })
+  count: number;
+}
+
+export class DebtOutstandingStatsDto {
+  @ApiProperty({ description: 'Saldo vivo vigente total = payable + receivable.', example: 3000 })
+  amount: number;
+
+  @ApiProperty({ description: 'Principal vigente total = Σ principalAmount open.', example: 3000 })
+  principal: number;
+
+  @ApiProperty({ description: 'Total de deudas vigentes.', example: 1 })
+  count: number;
+}
+
+export class DebtOverdueStatsDto {
+  @ApiProperty({ description: 'Deudas vencidas: open con dueDate < hoy.', example: 1 })
+  count: number;
+
+  @ApiProperty({ description: 'Total de vigentes (base del “de X vigentes”).', example: 1 })
+  totalVigentes: number;
+}
+
+export class DebtStatsResponseDto {
+  @ApiProperty({ description: 'Card 1: Por pagar (yo debo).', type: DebtPayableStatsDto })
+  porPagar: DebtPayableStatsDto;
+
+  @ApiProperty({ description: 'Card 2: Por cobrar (me deben).', type: DebtReceivableStatsDto })
+  porCobrar: DebtReceivableStatsDto;
+
+  @ApiProperty({ description: 'Card 3: Saldo vivo vigente + principal.', type: DebtOutstandingStatsDto })
+  saldoVivoVigente: DebtOutstandingStatsDto;
+
+  @ApiProperty({ description: 'Card 4: Vencidas.', type: DebtOverdueStatsDto })
+  vencidas: DebtOverdueStatsDto;
+}

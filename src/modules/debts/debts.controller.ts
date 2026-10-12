@@ -6,7 +6,7 @@ import { ResponseMessage } from '../../common/decorators/response-message.decora
 import { AuthUser, UsuarioActual } from '../../common/decorators/usuario-actual.decorator';
 import { DebtStatus } from '../../common/enums';
 import { DebtsService } from './debts.service';
-import { CreateDebtDto, DebtResponseDto, UpdateDebtDto } from './dto/debt.dto';
+import { CreateDebtDto, DebtResponseDto, DebtStatsResponseDto, UpdateDebtDto } from './dto/debt.dto';
 
 class DebtsQuery {
   @IsOptional()
@@ -36,6 +36,22 @@ export class DebtsController {
   })
   findAll(@UsuarioActual() user: AuthUser, @Query() q: DebtsQuery) {
     return this.service.findAll(user.userId, q.status);
+  }
+
+  @Get('stats')
+  @ApiOperation({
+    summary: 'Stats para cards de deudas',
+    description:
+      'Agregados para las 4 cards: `porPagar` (yo debo), `porCobrar` (me deben), `saldoVivoVigente` (total + principal) y `vencidas` (`dueDate < hoy`). Solo considera `status=open`; `outstanding = max(principal − pagado, 0)`.',
+  })
+  @ResponseMessage('Estadísticas de deudas obtenidas exitosamente')
+  @ApiGlobalResponse({
+    description: 'Stats de deudas vigentes.',
+    type: DebtStatsResponseDto,
+    message: 'Estadísticas de deudas obtenidas exitosamente',
+  })
+  stats(@UsuarioActual() user: AuthUser) {
+    return this.service.stats(user.userId);
   }
 
   @Get(':id')

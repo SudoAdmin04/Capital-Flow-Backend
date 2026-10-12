@@ -26,7 +26,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Usuario no autorizado o inactivo');
     }
-    // Permisos frescos desde BD: lo que llega a request.user → @UsuarioActual()
     const acceso = await this.permisosService.buildForRole(user.roleId ?? null);
     return {
       ...user,

@@ -159,3 +159,79 @@ export class CopyBudgetsResponseDto {
   @ApiProperty({ description: 'Omitidos por ya existir en el destino.', example: 2 })
   skipped: number;
 }
+
+/** Periodo mensual resuelto. */
+export class BudgetPeriodDto {
+  @ApiProperty({ example: 2025 }) year: number;
+  @ApiProperty({ example: 10 }) month: number;
+  @ApiProperty({ description: 'Primer día del mes.', example: '2025-10-01' }) from: string;
+  @ApiProperty({ description: 'Último día del mes.', example: '2025-10-31' }) to: string;
+}
+
+export class BudgetStatsTotalsDto {
+  @ApiProperty({ description: 'Total planificado (Σ presupuestos, sin income).', example: 26619 })
+  planificado: number;
+
+  @ApiProperty({ description: 'Total ejecutado (Σ gasto real, sin income).', example: 20100 })
+  ejecutado: number;
+
+  @ApiProperty({ description: 'Presupuesto restante = planificado − ejecutado.', example: 6519 })
+  restante: number;
+
+  @ApiProperty({ description: 'Tasa de ejecución = ejecutado / planificado * 100 (null sin plan).', example: 75.51, nullable: true })
+  tasaEjecucion: number | null;
+}
+
+export class BudgetStatsCountsDto {
+  @ApiProperty({ description: 'Total de rubros con plan o movimiento.', example: 4 })
+  total: number;
+
+  @ApiProperty({ description: 'Rubros en orden (within + met).', example: 2 })
+  enOrden: number;
+
+  @ApiProperty({ description: 'Rubros cerca del límite (≥90%).', example: 1 })
+  cercaLimite: number;
+
+  @ApiProperty({ description: 'Rubros excedidos (exceeded + unbudgeted).', example: 1 })
+  excedidos: number;
+}
+
+/** `GET /budgets/stats` — cards de totales. */
+export class BudgetStatsResponseDto {
+  @ApiProperty({ type: BudgetPeriodDto }) periodo: BudgetPeriodDto;
+
+  @ApiProperty({ type: BudgetStatsTotalsDto }) totales: BudgetStatsTotalsDto;
+
+  @ApiProperty({ type: BudgetStatsCountsDto }) conteos: BudgetStatsCountsDto;
+}
+
+/** Una fila de la comparativa Planificado vs Ejecutado. */
+export class BudgetComparisonItemDto {
+  @ApiProperty({ example: 'c3d4e5f6-a7b8-9012-cdef-123456789012' }) categoryId: string;
+  @ApiProperty({ description: 'Nombre del rubro.', example: 'Gastos Generales' }) name: string;
+  @ApiProperty({ description: '`expense | savings | debt`.', example: 'expense' }) kind: string;
+  @ApiProperty({ example: '#3b82f6', nullable: true }) color: string | null;
+  @ApiProperty({ example: 'shopping_cart', nullable: true }) icon: string | null;
+  @ApiProperty({ description: 'Techo de asignación (presupuesto).', example: 15144 }) planificado: number;
+  @ApiProperty({ description: 'Gasto devengado real.', example: 13811 }) ejecutado: number;
+  @ApiProperty({ description: 'ejecutado − planificado. En egresos positivo = sobregiro.', example: -1333 }) varianza: number;
+  @ApiProperty({ description: 'ejecutado / planificado * 100 (null sin plan).', example: 91.2, nullable: true }) tasaEjecucion: number | null;
+  @ApiProperty({ description: '`within | near | exceeded | unbudgeted | met | below`.', example: 'within' }) estado: string;
+}
+
+/** `GET /budgets/comparison` — componente Comparativa: Planificado vs Ejecutado. */
+export class BudgetComparisonResponseDto {
+  @ApiProperty({ type: BudgetPeriodDto }) periodo: BudgetPeriodDto;
+  @ApiProperty({ description: 'Identificador del periodo para el footer (ej. PER-2025-10-MTRX).', example: 'PER-2025-10-MTRX' })
+  periodoId: string;
+
+  @ApiProperty({ type: BudgetStatsTotalsDto }) totales: BudgetStatsTotalsDto;
+
+  @ApiProperty({ description: 'Saldo neto del mes (ingresos − egresos). Negativo = déficit.', example: -6519 })
+  saldoNeto: number;
+
+  @ApiProperty({ description: '¿El mes cierra en déficit?', example: true })
+  esDeficit: boolean;
+
+  @ApiProperty({ type: [BudgetComparisonItemDto] }) items: BudgetComparisonItemDto[];
+}

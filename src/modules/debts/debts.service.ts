@@ -70,4 +70,31 @@ export class DebtsService {
       round2(open.filter((d) => d.direction === dir).reduce((acc, d) => acc + d.outstanding, 0));
     return { payable: sum(DebtDirection.PAYABLE), receivable: sum(DebtDirection.RECEIVABLE), open };
   }
+
+  /**
+   * Stats para las 4 cards de la página de deudas.
+   * Solo considera `status=open`. `outstanding = max(principal − pagado, 0)`.
+   * Vencida = `dueDate < hoy` (comparación por fecha YYYY-MM-DD).
+   */
+  async stats(userId: string) {
+    const open = await this.findAll(userId, DebtStatus.OPEN);
+
+    const payableList = open.filter((d) => d.direction === DebtDirection.PAYABLE);
+    const receivableList = open.filter((d) => d.direction === DebtDirection.RECEIVABLE);
+
+    const payableAmount = round2(payableList.reduce((s, d) => s + d.outstanding, 0));
+    const receivableAmount = round2(receivableList.reduce((s, d) => s + d.outstanding, 0));
+    const outstandingAmount = round2(payableAmount + receivableAmount);
+    const principal = round2(open.reduce((s, d) => s + Number(d.principalAmount), 0));
+
+    const today = new Date().toISOString().slice(0, 10);
+    const overdueCount = open.filter((d) => d.dueDate != null && d.dueDate < today).length;
+
+    return {
+      porPagar: { amount: payableAmount, count: payableList.length },
+      porCobrar: { amount: receivableAmount, count: receivableList.length },
+      saldoVivoVigente: { amount: outstandingAmount, principal, count: open.length },
+      vencidas: { count: overdueCount, totalVigentes: open.length },
+    };
+  }
 }

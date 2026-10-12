@@ -6,7 +6,9 @@ import { AuthUser, UsuarioActual } from '../../common/decorators/usuario-actual.
 import { BudgetsService } from './budgets.service';
 import {
   BudgetAdjustmentResponseDto,
+  BudgetComparisonResponseDto,
   BudgetResponseDto,
+  BudgetStatsResponseDto,
   CopyBudgetsDto,
   CopyBudgetsResponseDto,
   CreateBudgetDto,
@@ -53,6 +55,38 @@ export class BudgetsController {
   })
   recent(@UsuarioActual() user: AuthUser, @Query() q: RecentAdjustmentsDto) {
     return this.service.recentAdjustments(user.userId, q.days);
+  }
+
+  @Get('stats')
+  @ApiOperation({
+    summary: 'Stats de presupuestos (cards)',
+    description:
+      'Totales del mes para las cards: `planificado` (Σ presupuestos sin income), `ejecutado` (Σ gasto real sin income ni transferencias), `restante` (= planificado − ejecutado) y `tasaEjecucion` (= ejecutado / planificado * 100). Incluye `conteos` por estado. Requiere `year` y `month`.',
+  })
+  @ResponseMessage('Estadísticas de presupuestos obtenidas exitosamente')
+  @ApiGlobalResponse({
+    description: 'Totales y conteos del mes.',
+    type: BudgetStatsResponseDto,
+    message: 'Estadísticas de presupuestos obtenidas exitosamente',
+  })
+  stats(@UsuarioActual() user: AuthUser, @Query() q: QueryBudgetsDto) {
+    return this.service.stats(user.userId, q);
+  }
+
+  @Get('comparison')
+  @ApiOperation({
+    summary: 'Comparativa: Planificado vs Ejecutado',
+    description:
+      'Desglose por rubro (techo de asignación vs gasto devengado real) para el componente de barras: `items` con `planificado, ejecutado, varianza, tasaEjecucion, estado`. `saldoNeto` (= ingresos − egresos) alimenta el footer “Déficit/superávit global proyectado”. Excluye rubros `income` del desglose; las transferencias no cuentan. Requiere `year` y `month`.',
+  })
+  @ResponseMessage('Comparativa obtenida exitosamente')
+  @ApiGlobalResponse({
+    description: 'Comparativa por rubro con totales y saldo neto.',
+    type: BudgetComparisonResponseDto,
+    message: 'Comparativa obtenida exitosamente',
+  })
+  comparison(@UsuarioActual() user: AuthUser, @Query() q: QueryBudgetsDto) {
+    return this.service.comparison(user.userId, q);
   }
 
   @Post('copy')

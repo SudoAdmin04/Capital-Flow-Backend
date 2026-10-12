@@ -31,17 +31,15 @@ export class AuthService {
   private signPair(payload: JwtPayload) {
     return {
       access_token: this.jwtService.sign(payload, { expiresIn: '1d' }),
-      refresh_token: this.jwtService.sign(payload, { expiresIn: '7d' }),
+      refresh_token: this.jwtService.sign(payload, { expiresIn: '1d' }),
     };
   }
 
-  /** Flujo: usuario → rol base + catálogo sembrado → crea cuentas → registra ingresos/egresos (transactions). */
   async registro(registroDto: RegistroDto) {
     const existing = await this.usersService.findByEmail(registroDto.email);
     if (existing) throw new ConflictException('El correo ya está registrado');
 
     const passwordHash = await bcrypt.hash(registroDto.password, 12);
-    // Auto-registro público: rol base no-admin (nunca admin). El rol se asigna vía PATCH /users/:id/rol (admin).
     const roleId = await this.permisosService.defaultRoleId();
     const created = await this.usersService.create({
       email: registroDto.email,
@@ -53,7 +51,6 @@ export class AuthService {
     });
     if (!created) throw new ConflictException('El correo ya está registrado');
 
-    // Catálogo base del Excel para que pueda operar desde el día 1
     await this.categoriesService.seedDefaults(created.id);
 
     const acceso = await this.permisosService.buildForRole(created.roleId);
@@ -68,7 +65,6 @@ export class AuthService {
     return { ...this.signPair(payload), usuario: toUserResponse(created, acceso) };
   }
 
-  /** Alias en inglés para compatibilidad con seeds/scripts. */
   register(dto: RegistroDto) {
     return this.registro(dto);
   }
@@ -105,7 +101,6 @@ export class AuthService {
           'Token de actualización inválido o usuario inactivo.',
         );
       }
-      // Permisos siempre frescos desde BD (revocar acceso no exige re-login)
       const acceso = await this.permisosService.buildForRole(user.roleId ?? null);
       const payload: JwtPayload = {
         sub: user.id,
