@@ -113,6 +113,14 @@ export class SeedService {
         throw new Error(`parentRef inválido ${s.parentRef} para pantalla '${s.name}': el padre debe ir antes en el arreglo`);
       }
       let screen = await screenRepo.findOne({ where: { name: s.name } });
+      if (!screen && s.name === 'Reportes') {
+        // Renombra la pantalla legacy '/analiticas' en sitio: conserva id y permisos existentes.
+        const legacy = await screenRepo.findOne({ where: { path: '/analiticas' } });
+        if (legacy) {
+          legacy.name = s.name;
+          screen = legacy;
+        }
+      }
       if (!screen) {
         screen = await screenRepo.save(
           screenRepo.create({
@@ -126,12 +134,24 @@ export class SeedService {
           }),
         );
         created.screens++;
-      } else if (s.parentRef || s.module) {
-        // Mantiene module/parentId alineados si la plantilla cambia.
-        const parentId = s.parentRef ? screenIdByRef[s.parentRef] : screen.parentId;
-        if (screen.module !== (s.module ?? null) || screen.parentId !== parentId) {
-          screen.module = s.module ?? null;
-          screen.parentId = parentId;
+      } else {
+        // Mantiene path/icon/order/module/parentId alineados si la plantilla cambia.
+        const parentId = s.parentRef ? screenIdByRef[s.parentRef] : null;
+        const patch = {
+          path: s.path ?? null,
+          icon: s.icon ?? null,
+          order: s.order ?? 0,
+          module: s.module ?? null,
+          parentId,
+        };
+        if (
+          screen.path !== patch.path ||
+          screen.icon !== patch.icon ||
+          screen.order !== patch.order ||
+          screen.module !== patch.module ||
+          screen.parentId !== patch.parentId
+        ) {
+          Object.assign(screen, patch);
           await screenRepo.save(screen);
         }
       }

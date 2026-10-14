@@ -37,14 +37,14 @@ export class AnalyticsQueryDto extends PeriodQueryDto {
     example: 6,
     default: 6,
     minimum: 2,
-    maximum: 24,
+    maximum: 60,
   })
   /** Cantidad de meses de historial (termina en el periodo indicado). */
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(2)
-  @Max(24)
+  @Max(60)
   months?: number;
 
   @ApiPropertyOptional({

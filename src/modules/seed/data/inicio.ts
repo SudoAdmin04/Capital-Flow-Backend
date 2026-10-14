@@ -88,9 +88,9 @@ export const screens: SeedScreen[] = [
     module: 'finanzas',
   },
   {
-    name: 'Analíticas',
-    path: '/analiticas',
-    icon: 'i-lucide-chart-no-axes-combined',
+    name: 'Reportes',
+    path: '/reportes',
+    icon: 'i-lucide-files',
     order: 40,
     module: 'finanzas',
   },
@@ -152,19 +152,17 @@ export const screens: SeedScreen[] = [
   },
   {
     name: 'Metas de ahorro',
-    path: '/configuracion/metas-ahorro',
+    path: '/metas-ahorro',
     icon: 'i-lucide-piggy-bank',
     order: 260,
     module: 'catalogos',
-    parentRef: 6,
   },
   {
     name: 'Deudas',
-    path: '/configuracion/deudas',
+    path: '/deudas',
     icon: 'i-lucide-hand-coins',
     order: 270,
     module: 'catalogos',
-    parentRef: 6,
   },
   {
     name: 'Notificaciones',
@@ -189,6 +187,22 @@ export const screens: SeedScreen[] = [
     order: 32,
     module: 'finanzas',
     parentRef: 3,
+  },
+  {
+    name: 'Analíticas',
+    path: '/reportes/analiticas',
+    icon: 'i-lucide-chart-no-axes-combined',
+    order: 41,
+    module: 'finanzas',
+    parentRef: 4,
+  },
+  {
+    name: 'Reporte de presupuestos',
+    path: '/reportes/presupuestos',
+    icon: 'i-lucide-wallet',
+    order: 42,
+    module: 'finanzas',
+    parentRef: 4,
   },
 ];
 
