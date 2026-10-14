@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, IsNull } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
-import { CategoryKind, TransactionStatus, TransactionType } from '../../common/enums';
+import { CategoryKind, DebtStatus, TransactionStatus, TransactionType } from '../../common/enums';
 import { Account } from '../accounts/account.entity';
 import { Budget } from '../budgets/budget.entity';
+import { BudgetAdjustment } from '../budgets/budget-adjustment.entity';
+import { BudgetCalendarEvent } from '../budgets/calendar/budget-calendar-event.entity';
 import { Category } from '../categories/category.entity';
 import { Debt } from '../debts/debt.entity';
 import { Notification } from '../notifications/notification.entity';
@@ -14,9 +16,11 @@ import { Screen } from '../screens/screen.entity';
 import { Transaction } from '../transactions/transaction.entity';
 import { User } from '../users/user.entity';
 import {
+  ajustesPresupuesto,
   cuentas,
   categorias,
   deudas,
+  eventosCalendario,
   metasAhorro,
   notificaciones,
   permisos,
@@ -34,11 +38,13 @@ import {
  * 1. roles (por name) -> 2. screens (por name, padres primero vía parentRef)
  * 3. users (por email, bcrypt 12, rolRef) -> 4. role_screens (por rol+pantalla)
  * 5. accounts (por usuario+nombre) -> 6. categories (por usuario+padre+nombre)
- * 7. debts -> 8. transactions (se omiten si el usuario ya tiene)
- * 9. budgets -> 10. savings_goals -> 11. notifications
+ * 7. debts -> 8. transactions (por usuario: se omiten las de un usuario que ya tiene)
+ * 9. budgets -> 10. budget_adjustments (historial) -> 11. budget_calendar_events
+ * 12. savings_goals -> 13. notifications
  *
  * No hace TRUNCATE: es re-ejecutable y no borra datos existentes.
- * Las finanzas de ejemplo quedan ligadas al primer usuario (superAdmin).
+ * Las finanzas de ejemplo quedan ligadas al primer usuario (superAdmin)
+ * y al tercero (alan@example.com).
  */
 @Injectable()
 export class SeedService {
@@ -59,6 +65,8 @@ export class SeedService {
     const debtRepo = this.dataSource.getRepository(Debt);
     const txRepo = this.dataSource.getRepository(Transaction);
     const budgetRepo = this.dataSource.getRepository(Budget);
+    const adjustmentRepo = this.dataSource.getRepository(BudgetAdjustment);
+    const calendarRepo = this.dataSource.getRepository(BudgetCalendarEvent);
     const goalRepo = this.dataSource.getRepository(SavingsGoal);
     const notifRepo = this.dataSource.getRepository(Notification);
 
@@ -72,6 +80,8 @@ export class SeedService {
       debts: 0,
       transactions: 0,
       budgets: 0,
+      adjustments: 0,
+      calendarEvents: 0,
       goals: 0,
       notifications: 0,
     };
@@ -258,7 +268,7 @@ export class SeedService {
             reference: d.reference ?? null,
             direction: d.direction,
             principalAmount: d.principalAmount,
-            status: 'open' as never,
+            status: d.status ?? DebtStatus.OPEN,
             dueDate: d.dueDate ?? null,
             notes: d.notes ?? null,
           }),
@@ -268,76 +278,154 @@ export class SeedService {
       debtIdByRef[i + 1] = debt.id;
     }
 
-    // ---- 8. Transacciones (se omiten si el usuario ya tiene; valida reglas) ----
-    const ownerId = userIdByRef[1];
-    const ownerTxCount = await txRepo.count({ where: { userId: ownerId } });
-    if (ownerTxCount === 0) {
-      const catKindById = new Map<string, CategoryKind>();
-      for (const id of Object.values(categoryIdByRef)) {
-        const cat = await categoryRepo.findOne({ where: { id } });
-        if (cat) catKindById.set(id, cat.kind);
+    // ---- 8. Transacciones (por usuario: solo inserta las de usuarios sin movimientos; valida reglas) ----
+    const catKindById = new Map<string, CategoryKind>();
+    for (const id of Object.values(categoryIdByRef)) {
+      const cat = await categoryRepo.findOne({ where: { id } });
+      if (cat) catKindById.set(id, cat.kind);
+    }
+    // Usuarios con movimientos ya existentes (para no duplicar en re-ejecuciones).
+    const userIdsInSeed = [...new Set(transacciones.map((t) => userIdByRef[t.usuarioRef]).filter(Boolean))];
+    const hasTxByUser = new Map<string, boolean>();
+    for (const uid of userIdsInSeed) {
+      hasTxByUser.set(uid, (await txRepo.count({ where: { userId: uid } })) > 0);
+    }
+    for (const t of transacciones) {
+      const userId = userIdByRef[t.usuarioRef];
+      if (hasTxByUser.get(userId)) {
+        continue;
       }
-      for (const t of transacciones) {
-        const userId = userIdByRef[t.usuarioRef];
-        const accountId = accountIdByRef[t.cuentaRef];
-        if (!userId || !accountId) {
-          throw new Error(`Referencia inválida en transacción '${t.concept}'`);
-        }
-        const categoryId = t.categoriaRef ? categoryIdByRef[t.categoriaRef] : null;
-        const destinationAccountId = t.destinoRef ? accountIdByRef[t.destinoRef] : null;
-        const debtId = t.deudaRef ? debtIdByRef[t.deudaRef] : null;
-        // Reglas: transfer sin categoría y con destino distinto; income↔kind income; expense↔kind no-income.
-        if (t.type === TransactionType.TRANSFER) {
-          if (!destinationAccountId) throw new Error(`Transferencia '${t.concept}' requiere destinoRef`);
-          if (destinationAccountId === accountId) throw new Error(`Transferencia '${t.concept}' origen = destino`);
-          if (categoryId) throw new Error(`Transferencia '${t.concept}' no lleva categoría`);
-        } else {
-          if (destinationAccountId) throw new Error(`'${t.concept}' solo transfer lleva destino`);
-          if (!categoryId) throw new Error(`'${t.concept}' requiere categoriaRef`);
-          const kind = catKindById.get(categoryId);
-          const isIncome = kind === CategoryKind.INCOME;
-          if (t.type === TransactionType.INCOME ? !isIncome : isIncome) {
-            throw new Error(`Categoría no corresponde al tipo en '${t.concept}'`);
-          }
-        }
-        const status = t.status ?? TransactionStatus.PENDING;
-        await txRepo.save(
-          txRepo.create({
-            userId,
-            accountId,
-            destinationAccountId,
-            categoryId,
-            debtId,
-            type: t.type,
-            amount: t.amount,
-            date: t.date,
-            concept: t.concept,
-            description: t.description ?? null,
-            paymentMethod: t.paymentMethod ?? null,
-            status,
-            reconciledAt: status === TransactionStatus.RECONCILED ? new Date() : null,
-            reference: t.reference ?? null,
-          }),
-        );
-        created.transactions++;
+      const accountId = accountIdByRef[t.cuentaRef];
+      if (!userId || !accountId) {
+        throw new Error(`Referencia inválida en transacción '${t.concept}'`);
       }
-    } else {
-      console.log(`El usuario ya tiene ${ownerTxCount} movimientos; se omiten transacciones demo`);
+      const categoryId = t.categoriaRef ? categoryIdByRef[t.categoriaRef] : null;
+      const destinationAccountId = t.destinoRef ? accountIdByRef[t.destinoRef] : null;
+      const debtId = t.deudaRef ? debtIdByRef[t.deudaRef] : null;
+      // Reglas: transfer sin categoría y con destino distinto; income↔kind income; expense↔kind no-income.
+      if (t.type === TransactionType.TRANSFER) {
+        if (!destinationAccountId) throw new Error(`Transferencia '${t.concept}' requiere destinoRef`);
+        if (destinationAccountId === accountId) throw new Error(`Transferencia '${t.concept}' origen = destino`);
+        if (categoryId) throw new Error(`Transferencia '${t.concept}' no lleva categoría`);
+      } else {
+        if (destinationAccountId) throw new Error(`'${t.concept}' solo transfer lleva destino`);
+        if (!categoryId) throw new Error(`'${t.concept}' requiere categoriaRef`);
+        const kind = catKindById.get(categoryId);
+        const isIncome = kind === CategoryKind.INCOME;
+        if (t.type === TransactionType.INCOME ? !isIncome : isIncome) {
+          throw new Error(`Categoría no corresponde al tipo en '${t.concept}'`);
+        }
+      }
+      // Valida que la deuda pertenezca al mismo usuario (detalle de deudas por usuario).
+      if (debtId) {
+        const debt = await debtRepo.findOne({ where: { id: debtId } });
+        if (!debt || debt.userId !== userId) {
+          throw new Error(`deudaRef inválida en '${t.concept}': la deuda no es del mismo usuario`);
+        }
+      }
+      const status = t.status ?? TransactionStatus.PENDING;
+      await txRepo.save(
+        txRepo.create({
+          userId,
+          accountId,
+          destinationAccountId,
+          categoryId,
+          debtId,
+          type: t.type,
+          amount: t.amount,
+          date: t.date,
+          concept: t.concept,
+          description: t.description ?? null,
+          paymentMethod: t.paymentMethod ?? null,
+          status,
+          reconciledAt: status === TransactionStatus.RECONCILED ? new Date() : null,
+          reference: t.reference ?? null,
+        }),
+      );
+      created.transactions++;
     }
 
     // ---- 9. Presupuestos (por usuario+categoría+año+mes) ----
-    for (const b of presupuestos) {
+    const budgetIdByRef: Record<number, string> = {};
+    for (let i = 0; i < presupuestos.length; i++) {
+      const b = presupuestos[i];
       const userId = userIdByRef[b.usuarioRef];
       const categoryId = categoryIdByRef[b.categoriaRef];
       if (!userId || !categoryId) throw new Error('Referencia inválida en presupuestos');
-      const existing = await budgetRepo.findOne({ where: { userId, categoryId, year: b.year, month: b.month } });
-      if (!existing) {
-        await budgetRepo.save(budgetRepo.create({ userId, categoryId, year: b.year, month: b.month, amount: b.amount }));
+      let budget = await budgetRepo.findOne({ where: { userId, categoryId, year: b.year, month: b.month } });
+      if (!budget) {
+        budget = await budgetRepo.save(
+          budgetRepo.create({ userId, categoryId, year: b.year, month: b.month, amount: b.amount }),
+        );
         created.budgets++;
+      }
+      budgetIdByRef[i + 1] = budget.id;
+    }
+
+    // ---- 10. Historial de ajustes (budget_adjustments; detalle para presupuestos) ----
+    for (const a of ajustesPresupuesto) {
+      const userId = userIdByRef[a.usuarioRef];
+      const budgetId = budgetIdByRef[a.presupuestoRef];
+      if (!userId || !budgetId) throw new Error('Referencia inválida en ajustesPresupuesto');
+      const budget = await budgetRepo.findOne({ where: { id: budgetId } });
+      if (!budget || budget.userId !== userId) {
+        throw new Error('ajustePresupuesto no corresponde al mismo usuario del presupuesto');
+      }
+      const existing = await adjustmentRepo.findOne({
+        where: { budgetId, previousAmount: a.previousAmount as never, newAmount: a.newAmount as never },
+      });
+      if (!existing) {
+        await adjustmentRepo.save(
+          adjustmentRepo.create({
+            budgetId,
+            previousAmount: a.previousAmount,
+            newAmount: a.newAmount,
+            reason: a.reason ?? null,
+            source: a.source ?? ('manual' as never),
+          }),
+        );
+        created.adjustments++;
       }
     }
 
-    // ---- 10. Metas de ahorro (por usuario+nombre) ----
+    // ---- 11. Calendario de presupuestos (budget_calendar_events) ----
+    for (const e of eventosCalendario) {
+      const userId = userIdByRef[e.usuarioRef];
+      const categoryId = categoryIdByRef[e.categoriaRef];
+      if (!userId || !categoryId) throw new Error('Referencia inválida en eventosCalendario');
+      if (e.startDate > e.endDate) throw new Error(`Evento '${e.title ?? categoryId}' con endDate < startDate`);
+      const budgetId = e.presupuestoRef ? budgetIdByRef[e.presupuestoRef] : null;
+      if (e.presupuestoRef && !budgetId) throw new Error('presupuestoRef inválido en eventosCalendario');
+      if (budgetId) {
+        const budget = await budgetRepo.findOne({ where: { id: budgetId } });
+        if (!budget || budget.userId !== userId) {
+          throw new Error('eventoCalendario: el presupuesto vinculado no es del mismo usuario');
+        }
+      }
+      const title = e.title?.trim() || (await categoryRepo.findOne({ where: { id: categoryId } }))?.name || 'Evento';
+      const existing = await calendarRepo.findOne({
+        where: { userId, categoryId, title, startDate: e.startDate, endDate: e.endDate },
+      });
+      if (!existing) {
+        await calendarRepo.save(
+          calendarRepo.create({
+            userId,
+            categoryId,
+            budgetId,
+            title,
+            amount: e.amount,
+            startDate: e.startDate,
+            endDate: e.endDate,
+            notes: e.notes ?? null,
+            color: e.color ?? null,
+            isAllDay: e.isAllDay ?? true,
+          }),
+        );
+        created.calendarEvents++;
+      }
+    }
+
+    // ---- 12. Metas de ahorro (por usuario+nombre) ----
     for (const g of metasAhorro) {
       const userId = userIdByRef[g.usuarioRef];
       if (!userId) throw new Error(`usuarioRef inválido en meta '${g.name}'`);
@@ -358,7 +446,7 @@ export class SeedService {
       }
     }
 
-    // ---- 11. Notificaciones (por usuario+título) ----
+    // ---- 13. Notificaciones (por usuario+título) ----
     for (const n of notificaciones) {
       const userId = userIdByRef[n.usuarioRef];
       if (!userId) throw new Error(`usuarioRef inválido en notificación '${n.title}'`);
