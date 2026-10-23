@@ -1,5 +1,4 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { PermisoPantallaDto } from '../../modules/auth/dto/jwt-payload.dto';
 
 export interface AuthUser {
   userId: string;
@@ -7,7 +6,6 @@ export interface AuthUser {
   roleId?: number | null;
   role?: string | null;
   isAdmin?: boolean;
-  permisos?: PermisoPantallaDto[];
   [key: string]: any;
 }
 

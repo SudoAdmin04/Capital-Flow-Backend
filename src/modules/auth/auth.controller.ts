@@ -78,7 +78,6 @@ export class AuthController {
     message: 'Perfil obtenido exitosamente',
   })
   getProfile(@UsuarioActual() user: AuthUser) {
-    const { passwordHash, ...rest } = user as any;
-    return rest;
+    return this.authService.getProfile(user);
   }
 }

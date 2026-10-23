@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { PermisoPantallaDto } from '../../auth/dto/jwt-payload.dto';
 
 export class UserResponseDto {
   @ApiProperty({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', format: 'uuid' })

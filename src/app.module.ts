@@ -11,6 +11,7 @@ import { BudgetsModule } from './modules/budgets/budgets.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DebtsModule } from './modules/debts/debts.module';
+import { ExportsModule } from './modules/exports/exports.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { RoleScreensModule } from './modules/role-screens/role-screens.module';
@@ -27,17 +28,30 @@ import { UsersModule } from './modules/users/users.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres' as const,
-        host: config.get<string>('DB_HOST', 'localhost'),
-        port: parseInt(config.get<string>('DB_PORT', '5432'), 10),
-        username: config.get<string>('DB_USER', 'finanzas'),
-        password: config.get<string>('DB_PASSWORD', 'finanzas'),
-        database: config.get<string>('DB_NAME', 'finanzas'),
-        autoLoadEntities: true,
-        synchronize: config.get<string>('DB_SYNCHRONIZE') === 'true',
-        logging: config.get<string>('DB_LOGGING') === 'true',
-      }),
+      useFactory: (config: ConfigService) => {
+        const databaseUrl = config.get<string>('DATABASE_URL');
+        const isProduction = config.get<string>('NODE_ENV') === 'production';
+
+        return {
+          type: 'postgres' as const,
+          ...(databaseUrl
+            ? {
+                url: databaseUrl,
+                ssl: { rejectUnauthorized: false },
+              }
+            : {
+                host: config.get<string>('DB_HOST', 'localhost'),
+                port: parseInt(config.get<string>('DB_PORT', '5432'), 10),
+                username: config.get<string>('DB_USER', 'finanzas'),
+                password: config.get<string>('DB_PASSWORD', 'finanzas'),
+                database: config.get<string>('DB_NAME', 'finanzas'),
+                ssl: isProduction ? { rejectUnauthorized: false } : false,
+              }),
+          autoLoadEntities: true,
+          synchronize: config.get<string>('DB_SYNCHRONIZE') === 'true',
+          logging: config.get<string>('DB_LOGGING') === 'true',
+        };
+      },
     }),
     UsersModule,
     AuthModule,
@@ -49,6 +63,7 @@ import { UsersModule } from './modules/users/users.module';
     DebtsModule,
     ReportsModule,
     DashboardModule,
+    ExportsModule,
     ScreensModule,
     RolesModule,
     RoleScreensModule,

@@ -120,4 +120,9 @@ export class AuthService {
       );
     }
   }
+
+  getProfile(user: Record<string, any>) {
+    const { passwordHash, permisos, ...rest } = user as any;
+    return rest;
+  }
 }
