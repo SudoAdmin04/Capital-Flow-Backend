@@ -9,9 +9,9 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
     "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
-    "migration:generate": "npm run typeorm -- migration:generate",
-    "migration:run": "npm run typeorm -- migration:run",
-    "migration:revert": "npm run typeorm -- migration:revert",
+    "migration:generate": "pnpm run typeorm -- migration:generate",
+    "migration:run": "pnpm run typeorm -- migration:run",
+    "migration:revert": "pnpm run typeorm -- migration:revert",
     "seed": "ts-node src/database/seeds/seed.ts"
   },
   "dependencies": {
@@ -49,5 +49,10 @@
     "@types/passport-jwt": "^4.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core"
+    ]
   }
 }
