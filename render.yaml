@@ -15,11 +15,11 @@ services:
         value: "false"
       - key: DB_LOGGING
         value: "false"
-      # La base de Neon ya tiene el esquema creado con synchronize y no tiene
-      # tabla `migrations`; si esto fuera true, TypeORM intentaría crear tablas
-      # que ya existen y el contenedor no arrancaría.
+      # Migraciones al arrancar. El runner hace baseline automático si la base
+      # ya existía (creada con synchronize) y aplica solo lo pendiente, así que
+      # es seguro tanto en Neon como en una base nueva.
       - key: RUN_MIGRATIONS
-        value: "false"
+        value: "true"
       - key: JWT_SECRET
         generateValue: true
       # URL del frontend, separada por comas. Sin esto, CORS solo permite localhost.
@@ -28,7 +28,11 @@ services:
       # Token para habilitar GET /api/seed en producción (opcional).
       - key: SEED_TOKEN
         generateValue: true
-      # Cadena de conexión de Neon (usa la "pooled connection" o la directa,
-      # con ?sslmode=require). Se define manualmente en el dashboard.
+      # Cadena de conexión de Neon. Puede incluir ?sslmode=require o no: el
+      # driver activa TLS solo en hosts remotos. Se define en el dashboard.
       - key: DATABASE_URL
+        sync: false
+      # Opcional: fuerza TLS (true) o lo desactiva (false) si la detección
+      # automática por host no aplica a tu proveedor.
+      - key: DB_SSL
         sync: false

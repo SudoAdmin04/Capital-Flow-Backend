@@ -48,7 +48,8 @@ pnpm run migration:revert:prod
 ## Database gotchas
 
 - `DATABASE_URL` takes precedence over `DB_*` values. `.env` is gitignored; the local `.env` points at a Neon database.
-- TLS se resuelve en `src/config/database.config.ts` (compartido por `app.module.ts` y `src/database/data-source.ts`): solo se activa si la URL trae `sslmode=require|verify-ca|verify-full` o `DB_SSL=true`. Render interno y `postgres` local van sin TLS; Neon/externo con `?sslmode=require`.
+- TLS se resuelve en `src/config/database.config.ts` (compartido por `app.module.ts`, `src/database/data-source.ts` y el runner de migraciones): `DB_SSL` explícito manda; si no, `sslmode` de la URL; si tampoco, se detecta por host (TLS en dominios remotos tipo Neon/Render externo, sin TLS en `localhost`, `host.docker.internal`, nombres de un solo label como `db` o `dpg-xxxx-a` de Render interno). Neon exige TLS, así que una URL sin `?sslmode=require` también funciona.
+- Runner de migraciones para contenedores: `src/database/migrate.ts` → `dist/database/migrate.js` (`pnpm build`). Hace **baseline** de `InitialSchema` cuando ya existe `users` y de `AddSavingsGoalEntries` cuando ya existe `savings_goal_entries` (caso de bases creadas con `DB_SYNCHRONIZE=true`), y luego aplica las pendientes; la migración RBAC es idempotente (`IF NOT EXISTS`).
 - Dev relies on `DB_SYNCHRONIZE=true`; env validation rejects it when `NODE_ENV=production`.
 - Las migraciones hoy cubren todo el esquema: `InitialSchema`, `AddSavingsGoalEntries` y `AddRbacNotificationsAndCalendar` (roles, screens, role_screens, `users.roleId`, notifications, budget_calendar_events). En una base nueva, `migration:run` crea el esquema completo.
 - `schema:log` sigue reportando drift cosmético (nombres de constraints/índices explícitos vs. hashes de TypeORM). No rompe el deploy, pero revisa el SQL antes de generar una migración nueva.
@@ -70,10 +71,9 @@ pnpm run migration:revert:prod
 
 ## Despliegue en Render
 
-- `render.yaml` define el web service Docker `capital-flow-api` (health check `/api/health`, `plan: free`). No crea base de datos: usa la Neon existente vía `DATABASE_URL` (definida a mano en el dashboard, con `?sslmode=require`).
-- `RUN_MIGRATIONS=false` en la blueprint porque Neon ya tiene el esquema creado con `DB_SYNCHRONIZE=true` y no existe tabla `migrations`; con `true`, TypeORM intentaría crear tablas existentes y el contenedor no arrancaría.
-- Si algún día migras a una base nueva (incluida Render Postgres): define `DATABASE_URL` a esa base, pon `RUN_MIGRATIONS=true` y las migraciones crean el esquema completo.
-- Para "baseline" de Neon y poder usar migraciones ahí: con la app detenida, inserta manualmente las filas correspondientes en una tabla `migrations` creada por TypeORM (`CREATE TABLE migrations (...)`, luego `migration:run` no re-ejecuta lo ya aplicado). Alternativa más simple: volcar/restaurar en una base nueva con `RUN_MIGRATIONS=true`.
+- `render.yaml` define el web service Docker `capital-flow-api` (health check `/api/health`, `plan: free`). No crea base de datos: usa la Neon existente vía `DATABASE_URL` (definida a mano en el dashboard; acepta la URL con o sin `?sslmode=require`).
+- `RUN_MIGRATIONS=true`: el runner `dist/database/migrate.js` detecta si la base ya existía (baseline) y solo aplica lo pendiente, por lo que funciona tanto con Neon como con una base nueva. Si el contenedor no puede migrar, sale con código 1 y el deploy se marca fallido en lugar de arrancar con esquema incompleto.
+- Neon exige TLS. `resolveSsl` lo activa automáticamente en hosts remotos; si usas un Postgres propio sin TLS en un host con dominio, define `DB_SSL=false`.
 - Variables mínimas a definir en el dashboard: `DATABASE_URL` (Neon) y `CORS_ORIGINS` (URL del frontend, separadas por coma). `JWT_SECRET` y `SEED_TOKEN` se generan solos con `generateValue: true`.
 - En producción `GET /api/seed` exige el header `x-seed-token` igual a `SEED_TOKEN`; sin esa variable siempre responde 401.
 - Render inyecta `PORT`; el contenedor escucha en `0.0.0.0` y usa `4002` solo como fallback local.

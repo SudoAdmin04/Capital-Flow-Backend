@@ -18,6 +18,7 @@
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
     "migration:run:prod": "typeorm migration:run -d dist/database/data-source.js",
     "migration:revert:prod": "typeorm migration:revert -d dist/database/data-source.js",
+    "migrate:deploy": "node dist/database/migrate.js",
     "seed": "ts-node src/database/seeds/seed.ts"
   },
   "dependencies": {
