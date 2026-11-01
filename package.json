@@ -53,7 +53,8 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "@nestjs/core",
-      "esbuild"
+      "esbuild",
+      "bcryptjs"
     ]
   }
 }
