@@ -4,7 +4,14 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
+# Forzamos a pnpm a permitir la ejecución de scripts globalmente en el entorno de Docker
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
 COPY package.json pnpm-lock.yaml ./
+
+# Instalamos permitiendo todos los scripts de compilación mediante configuración de pnpm
+RUN pnpm install --frozen-lockfile --config.enable-pre-post-scripts=true
 
 COPY . .
 RUN pnpm build
@@ -15,10 +22,13 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
 COPY package.json pnpm-lock.yaml ./
 
-# Instalamos SOLAMENTE las dependencias de producción permitiendo los scripts necesarios
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts=false
+# Instalamos las dependencias de producción permitiendo los scripts necesarios
+RUN pnpm install --frozen-lockfile --prod --config.enable-pre-post-scripts=true
 
 COPY --from=build /app/dist ./dist
 
