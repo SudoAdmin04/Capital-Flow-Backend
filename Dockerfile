@@ -6,7 +6,8 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 COPY package.json pnpm-lock.yaml ./
 
-# Permitir la ejecución de scripts necesarios durante la construcción
+# Permitir explícitamente los scripts de compilación requeridos por NestJS
+RUN pnpm config set only-built-dependencies '["@nestjs/core"]' --global
 RUN pnpm install --frozen-lockfile --shamefully-hoist=false
 
 COPY . .
@@ -22,6 +23,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY package.json pnpm-lock.yaml ./
 
 # Instalar dependencias de producción permitiendo los scripts necesarios
+RUN pnpm config set only-built-dependencies '["@nestjs/core"]' --global
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts=false
 
 COPY --from=build /app/dist ./dist
