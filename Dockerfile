@@ -6,9 +6,6 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 COPY package.json pnpm-lock.yaml ./
 
-# Permite la ejecución de scripts necesarios durante la instalación
-RUN pnpm install --frozen-lockfile --unsafe-perm
-
 COPY . .
 RUN pnpm build
 
@@ -21,7 +18,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY package.json pnpm-lock.yaml ./
 
 # Instalamos SOLAMENTE las dependencias de producción permitiendo los scripts necesarios
-RUN pnpm install --frozen-lockfile --prod --unsafe-perm
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts=false
 
 COPY --from=build /app/dist ./dist
 
