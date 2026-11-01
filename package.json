@@ -3,15 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "description": "Backend del sistema de finanzas personales (Capital Flow) - NestJS + TypeORM + PostgreSQL",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=20 <25"
+  },
   "scripts": {
     "build": "nest build",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
-    "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
-    "migration:generate": "pnpm run typeorm -- migration:generate",
-    "migration:run": "pnpm run typeorm -- migration:run",
-    "migration:revert": "pnpm run typeorm -- migration:revert",
+    "typeorm": "typeorm-ts-node-commonjs",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
+    "migration:run:prod": "typeorm migration:run -d dist/database/data-source.js",
+    "migration:revert:prod": "typeorm migration:revert -d dist/database/data-source.js",
     "seed": "ts-node src/database/seeds/seed.ts"
   },
   "dependencies": {
@@ -49,12 +55,5 @@
     "@types/passport-jwt": "^4.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@nestjs/core",
-      "esbuild",
-      "bcryptjs"
-    ]
   }
 }

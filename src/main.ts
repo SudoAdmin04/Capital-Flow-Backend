@@ -1,5 +1,6 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -7,8 +8,13 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const isProd = process.env.NODE_ENV === 'production';
+
+  // Render terminates TLS at its proxy; trust the first proxy hop so rate
+  // limiting and logs see the real client IP instead of the proxy address.
+  app.set('trust proxy', 1);
+  app.enableShutdownHooks();
 
   app.use(helmet({ contentSecurityPolicy: isProd }));
   const fallbackOrigins =
@@ -44,7 +50,7 @@ async function bootstrap() {
     });
   }
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   Logger.log(`API lista en http://localhost:${port}/api${isProd ? '' : ' (docs en /api/docs)'}`, 'Bootstrap');
   Logger.log(`CORS origins: ${isProd ? origins.join(', ') : '(dev: se refleja cualquier origen)'}`, 'Bootstrap');
 }

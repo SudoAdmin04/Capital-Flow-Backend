@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: capital-flow-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_SYNCHRONIZE
+        value: "false"
+      - key: DB_LOGGING
+        value: "false"
+      # Las migraciones corren en el entrypoint. Pon false si usas una base
+      # ya creada con synchronize (p. ej. Neon) en lugar de la de Render.
+      - key: RUN_MIGRATIONS
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      # URL del frontend (coma-separada). Sin esto, CORS solo permite localhost.
+      - key: CORS_ORIGINS
+        sync: false
+      # Token para habilitar GET /api/seed en producción (opcional).
+      - key: SEED_TOKEN
+        generateValue: true
+      # Opción A (recomendada para una base nueva): Render Postgres.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: capital-flow-db
+          property: connectionString
+      # Opción B: si prefieres Neon, elimina el bloque fromDatabase de arriba,
+      # borra la sección databases y define DATABASE_URL como sync: false.
+
+databases:
+  # Ojo: las bases "free" de Render expiran a los 30 días. Para producción
+  # real cambia plan a basic-256mb (o superior) antes del primer deploy.
+  - name: capital-flow-db
+    plan: free
+    region: oregon
+    postgresMajorVersion: "16"

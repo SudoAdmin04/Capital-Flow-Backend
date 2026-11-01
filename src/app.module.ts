@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { validateEnv } from './config/env.validation';
+import { buildPostgresOptions } from './config/database.config';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { AccountsModule } from './modules/accounts/accounts.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -12,6 +13,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DebtsModule } from './modules/debts/debts.module';
 import { ExportsModule } from './modules/exports/exports.module';
+import { HealthModule } from './modules/health/health.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { RoleScreensModule } from './modules/role-screens/role-screens.module';
@@ -29,24 +31,8 @@ import { UsersModule } from './modules/users/users.module';
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const databaseUrl = config.get<string>('DATABASE_URL');
-        const isProduction = config.get<string>('NODE_ENV') === 'production';
-
         return {
-          type: 'postgres' as const,
-          ...(databaseUrl
-            ? {
-                url: databaseUrl,
-                ssl: { rejectUnauthorized: false },
-              }
-            : {
-                host: config.get<string>('DB_HOST', 'localhost'),
-                port: parseInt(config.get<string>('DB_PORT', '5432'), 10),
-                username: config.get<string>('DB_USER', 'finanzas'),
-                password: config.get<string>('DB_PASSWORD', 'finanzas'),
-                database: config.get<string>('DB_NAME', 'finanzas'),
-                ssl: isProduction ? { rejectUnauthorized: false } : false,
-              }),
+          ...buildPostgresOptions((key, fallback) => config.get<string>(key) ?? fallback),
           autoLoadEntities: true,
           synchronize: config.get<string>('DB_SYNCHRONIZE') === 'true',
           logging: config.get<string>('DB_LOGGING') === 'true',
@@ -64,6 +50,7 @@ import { UsersModule } from './modules/users/users.module';
     ReportsModule,
     DashboardModule,
     ExportsModule,
+    HealthModule,
     ScreensModule,
     RolesModule,
     RoleScreensModule,
