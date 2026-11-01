@@ -10,9 +10,6 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 COPY package.json pnpm-lock.yaml ./
 
-# Instalamos permitiendo todos los scripts de compilación mediante configuración de pnpm
-RUN pnpm install --frozen-lockfile --config.enable-pre-post-scripts=true
-
 COPY . .
 RUN pnpm build
 
@@ -27,8 +24,8 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 COPY package.json pnpm-lock.yaml ./
 
-# Instalamos las dependencias de producción permitiendo los scripts necesarios
-RUN pnpm install --frozen-lockfile --prod --config.enable-pre-post-scripts=true
+# Instalamos SOLAMENTE las dependencias de producción permitiendo los scripts necesarios
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts=false
 
 COPY --from=build /app/dist ./dist
 
