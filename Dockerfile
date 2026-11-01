@@ -20,9 +20,6 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependencias de producción
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts=false
-
 COPY --from=build /app/dist ./dist
 
 USER node
