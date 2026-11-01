@@ -15,30 +15,20 @@ services:
         value: "false"
       - key: DB_LOGGING
         value: "false"
-      # Las migraciones corren en el entrypoint. Pon false si usas una base
-      # ya creada con synchronize (p. ej. Neon) en lugar de la de Render.
+      # La base de Neon ya tiene el esquema creado con synchronize y no tiene
+      # tabla `migrations`; si esto fuera true, TypeORM intentaría crear tablas
+      # que ya existen y el contenedor no arrancaría.
       - key: RUN_MIGRATIONS
-        value: "true"
+        value: "false"
       - key: JWT_SECRET
         generateValue: true
-      # URL del frontend (coma-separada). Sin esto, CORS solo permite localhost.
+      # URL del frontend, separada por comas. Sin esto, CORS solo permite localhost.
       - key: CORS_ORIGINS
         sync: false
       # Token para habilitar GET /api/seed en producción (opcional).
       - key: SEED_TOKEN
         generateValue: true
-      # Opción A (recomendada para una base nueva): Render Postgres.
+      # Cadena de conexión de Neon (usa la "pooled connection" o la directa,
+      # con ?sslmode=require). Se define manualmente en el dashboard.
       - key: DATABASE_URL
-        fromDatabase:
-          name: capital-flow-db
-          property: connectionString
-      # Opción B: si prefieres Neon, elimina el bloque fromDatabase de arriba,
-      # borra la sección databases y define DATABASE_URL como sync: false.
-
-databases:
-  # Ojo: las bases "free" de Render expiran a los 30 días. Para producción
-  # real cambia plan a basic-256mb (o superior) antes del primer deploy.
-  - name: capital-flow-db
-    plan: free
-    region: oregon
-    postgresMajorVersion: "16"
+        sync: false

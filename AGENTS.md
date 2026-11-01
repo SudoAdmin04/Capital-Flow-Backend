@@ -70,9 +70,10 @@ pnpm run migration:revert:prod
 
 ## Despliegue en Render
 
-- `render.yaml` define el web service Docker `capital-flow-api` (health check `/api/health`, `plan: free`) más una base Postgres `capital-flow-db`. La base free de Render **expira a los 30 días**.
-- `DATABASE_URL` viene de `fromDatabase` (conexión interna, sin TLS). Para usar Neon en su lugar: borra la sección `databases`, quita el `fromDatabase` y declara `DATABASE_URL` como `sync: false` (con `?sslmode=require`).
-- Si reutilizas una base ya creada con `DB_SYNCHRONIZE=true` (p. ej. la Neon actual), pon `RUN_MIGRATIONS=false`; si es una base nueva, déjalo en `true`.
-- Variables mínimas a definir en el dashboard: `CORS_ORIGINS` (URL del frontend, separadas por coma) y `SEED_TOKEN`. `JWT_SECRET` se genera solo con `generateValue: true`.
+- `render.yaml` define el web service Docker `capital-flow-api` (health check `/api/health`, `plan: free`). No crea base de datos: usa la Neon existente vía `DATABASE_URL` (definida a mano en el dashboard, con `?sslmode=require`).
+- `RUN_MIGRATIONS=false` en la blueprint porque Neon ya tiene el esquema creado con `DB_SYNCHRONIZE=true` y no existe tabla `migrations`; con `true`, TypeORM intentaría crear tablas existentes y el contenedor no arrancaría.
+- Si algún día migras a una base nueva (incluida Render Postgres): define `DATABASE_URL` a esa base, pon `RUN_MIGRATIONS=true` y las migraciones crean el esquema completo.
+- Para "baseline" de Neon y poder usar migraciones ahí: con la app detenida, inserta manualmente las filas correspondientes en una tabla `migrations` creada por TypeORM (`CREATE TABLE migrations (...)`, luego `migration:run` no re-ejecuta lo ya aplicado). Alternativa más simple: volcar/restaurar en una base nueva con `RUN_MIGRATIONS=true`.
+- Variables mínimas a definir en el dashboard: `DATABASE_URL` (Neon) y `CORS_ORIGINS` (URL del frontend, separadas por coma). `JWT_SECRET` y `SEED_TOKEN` se generan solos con `generateValue: true`.
 - En producción `GET /api/seed` exige el header `x-seed-token` igual a `SEED_TOKEN`; sin esa variable siempre responde 401.
 - Render inyecta `PORT`; el contenedor escucha en `0.0.0.0` y usa `4002` solo como fallback local.
