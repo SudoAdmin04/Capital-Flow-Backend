@@ -6,8 +6,6 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 COPY package.json pnpm-lock.yaml ./
 
-RUN pnpm install --frozen-lockfile --shamefully-hoist=false
-
 COPY . .
 RUN pnpm build
 
@@ -19,9 +17,6 @@ ENV NODE_ENV=production
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 COPY package.json pnpm-lock.yaml ./
-
-# Instalar dependencias de producción
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts=false
 
 COPY --from=build /app/dist ./dist
 
