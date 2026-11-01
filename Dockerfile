@@ -2,16 +2,13 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
-# Habilitar corepack para gestionar pnpm de forma nativa
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copiar archivos de dependencias (incluyendo pnpm-lock.yaml)
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependencias con pnpm
-RUN pnpm install --frozen-lockfile
+# Permitir la ejecución de scripts necesarios durante la construcción
+RUN pnpm install --frozen-lockfile --shamefully-hoist=false
 
-# Copiar el código fuente y compilar
 COPY . .
 RUN pnpm build
 
@@ -24,10 +21,9 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar solo dependencias de producción de forma limpia
-RUN pnpm install --frozen-lockfile --prod
+# Instalar dependencias de producción permitiendo los scripts necesarios
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts=false
 
-# Copiar los artefactos compilados desde la etapa anterior
 COPY --from=build /app/dist ./dist
 
 USER node
